@@ -78,10 +78,17 @@ void hal_UCBD_connect_init(void)
 /*----------------------------------------------------------------------------*/
 
 void HAL_LED_Init(void) {
+
+#ifdef LEDS_INVERTED GPIO_PIN_SET
+#define LEDS_RESET_STATE 1
+#else
+#define LEDS_RESET_STATE GPIO_PIN_RESET
+#endif
+
   GPIO_InitTypeDef GPIO_InitStruct;
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LED_GPIO, _BV(LED_PIN), GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(LED_GPIO, _BV(LED_PIN), LEDS_RESET_STATE);
 
   /*Configure GPIO pins : PB1 PB9 */
   GPIO_InitStruct.Pin = _BV(LED_PIN);
@@ -91,7 +98,7 @@ void HAL_LED_Init(void) {
 
   #ifdef LED2_GPIO
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LED2_GPIO, _BV(LED2_PIN), GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(LED2_GPIO, _BV(LED2_PIN), LEDS_RESET_STATE);
 
   /*Configure GPIO pins : PB1 PB9 */
   GPIO_InitStruct.Pin = _BV(LED2_PIN);
@@ -103,6 +110,11 @@ void HAL_LED_Init(void) {
 }
 
 void HAL_LED_Set(uint8_t led, uint8_t state) {
+
+#ifdef LEDS_INVERTED
+  state = !state;
+#endif
+
   switch(led) {
     case LED0:
       HAL_GPIO_WritePin(LED_GPIO, _BV(LED_PIN), state);
