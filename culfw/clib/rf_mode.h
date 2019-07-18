@@ -13,6 +13,7 @@ typedef enum {
   RF_mode_moritz,
   RF_mode_WMBUS_S,
   RF_mode_WMBUS_T,
+  RF_mode_WMBUS_C,
   RF_mode_maico,
   RF_mode_native1,
   RF_mode_native2,

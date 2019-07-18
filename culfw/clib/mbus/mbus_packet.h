@@ -23,6 +23,10 @@
 
 #define WMBUS_SMODE            1
 #define WMBUS_TMODE            2
+#define WMBUS_CMODE            3
+
+#define WMBUS_FRAMEA           1
+#define WMBUS_FRAMEB           2
 
 //----------------------------------------------------------------------------------
 // Functions
@@ -38,6 +42,9 @@ uint16 decodeRXBytesTmode(uint8* pByte, uint8* pPacket, uint16 packetSize);
 
 void   encodeTXBytesSmode(uint8* pByte, uint8* pPacket, uint16 packetSize);
 uint16 decodeRXBytesSmode(uint8* pByte, uint8* pPacket, uint16 packetSize);
+
+uint16 verifyCrcBytesCmodeA(uint8* pByte, uint8* pPacket, uint16 packetSize);
+uint16 verifyCrcBytesCmodeB(uint8* pByte, uint8* pPacket, uint16 packetSize);
 
 
 #endif
@@ -60,7 +67,7 @@ uint16 decodeRXBytesSmode(uint8* pByte, uint8* pPacket, uint16 packetSize);
   its documentation for any purpose.
 
   YOU FURTHER ACKNOWLEDGE AND AGREE THAT THE SOFTWARE AND DOCUMENTATION ARE
-  PROVIDED “AS IS” WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+  PROVIDED ï¿½AS ISï¿½ WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED,
   INCLUDING WITHOUT LIMITATION, ANY WARRANTY OF MERCHANTABILITY, TITLE,
   NON-INFRINGEMENT AND FITNESS FOR A PARTICULAR PURPOSE. IN NO EVENT SHALL
   TEXAS INSTRUMENTS OR ITS LICENSORS BE LIABLE OR OBLIGATED UNDER CONTRACT,

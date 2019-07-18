@@ -165,6 +165,7 @@ void set_RF_mode(RF_mode_t mode) {
 #ifdef HAS_MBUS
     case RF_mode_WMBUS_S:
     case RF_mode_WMBUS_T:
+    case RF_mode_WMBUS_C:
 #if defined(HAS_MULTI_CC) && (HAS_MULTI_CC > 1)
       for (CC1101.instance = 0; CC1101.instance < HAS_MULTI_CC; CC1101.instance++) {
         if((CC1101.instance != instance) && ((CC1101.RF_mode[CC1101.instance] & 0xFE) == RF_mode_WMBUS_S)) {
@@ -175,6 +176,8 @@ void set_RF_mode(RF_mode_t mode) {
 #endif
       if(mode == RF_mode_WMBUS_S)
         rf_mbus_init(WMBUS_SMODE,RADIO_MODE_RX);
+      else if(mode == RF_mode_WMBUS_C)
+        rf_mbus_init(WMBUS_CMODE,RADIO_MODE_RX);
       else
         rf_mbus_init(WMBUS_TMODE,RADIO_MODE_RX);
       break;
@@ -262,6 +265,7 @@ void rf_mode_task(void) {
         #ifdef HAS_MBUS
         case RF_mode_WMBUS_S:
         case RF_mode_WMBUS_T:
+        case RF_mode_WMBUS_C:
           rf_mbus_task();
           break;
         #endif

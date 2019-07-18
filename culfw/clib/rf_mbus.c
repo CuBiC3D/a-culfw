@@ -106,7 +106,9 @@ static uint8_t rf_mbus_on(uint8_t force) {
   RXinfo.format      = INFINITE;    // Infinite or fixed packet mode
   RXinfo.start       = TRUE;        // Sync or End of Packet
   RXinfo.complete    = FALSE;       // Packet Received
-  RXinfo.mode        = mbus_mode;   // Wireless MBUS mode
+  RXinfo.mode        = mbus_mode;   // Wireless MBUS radio mode
+  RXinfo.framemode   = WMBUS_NONE;  // Received frame mode (Distinguish between C- and T-mode)
+  RXinfo.frametype   = 0;           // Frame A or B in C-mode
 
   // Set RX FIFO threshold to 4 bytes
   halRfWriteReg(CC1100_FIFOTHR, RX_FIFO_START_THRESHOLD);
@@ -159,6 +161,9 @@ void rf_mbus_init(uint8_t mmode, uint8_t rmode) {
       }
       break;
     case WMBUS_TMODE:
+    // T-mode settings work for C-mode, which allows receiving
+    // both T-mode and C-mode frames simultaneously. See SWRA522D.
+    case WMBUS_CMODE:
       for (uint8_t i = 0; i<200; i += 2) {
         if (tCFG(i)>0x40)
           break;
@@ -257,26 +262,68 @@ void rf_mbus_task(void) {
           if (manchDecode(RXinfo.pByteIndex, bytesDecoded) != MAN_DECODING_OK) {
             RXinfo.state = 0;
             return;
-	  }		
+	        }		
           RXinfo.lengthField = bytesDecoded[0];
           RXinfo.length = byteSize(1, 0, (packetSize(RXinfo.lengthField)));
         } else {
+          // In C-mode we allow receiving T-mode because they are similar. To not break any applications using T-mode,
+          // we do not include results from C-mode in T-mode.
+
+          // If T-mode preamble and sync is used, then the first data byte is either a valid 3outof6 byte or C-mode
+          // signaling byte. (http://www.ti.com/lit/an/swra522d/swra522d.pdf#page=6)
+          if (RXinfo.mode == WMBUS_CMODE && RXinfo.pByteIndex[0] == 0x54) {
+            RXinfo.framemode = WMBUS_CMODE;
+            // If we have determined that it is a C-mode frame, we have to determine if it is Type A or B.
+            if (RXinfo.pByteIndex[1] == 0xCD) {
+              RXinfo.frametype = WMBUS_FRAMEA;
+
+              // Frame format A
+              RXinfo.lengthField = RXinfo.pByteIndex[2];
+
+              if (RXinfo.lengthField < 9) {
+                RXinfo.state = 0;
+                return;
+              }
+
+              // Number of CRC bytes = 2 * ceil((L-9)/16) + 2
+              // Preamble + L-field + payload + CRC bytes
+              RXinfo.length = 2 + 1 + RXinfo.lengthField + 2 * (2 + (RXinfo.lengthField - 10)/16);
+            } else if (RXinfo.pByteIndex[1] == 0x3D) {
+              RXinfo.frametype = WMBUS_FRAMEB;
+              // Frame format B
+              RXinfo.lengthField = RXinfo.pByteIndex[2];
+
+              if (RXinfo.lengthField < 12 || RXinfo.lengthField == 128) {
+                RXinfo.state = 0;
+                return;
+              }
+
+              // preamble + L-field + payload
+              RXinfo.length = 2 + 1 + RXinfo.lengthField;
+            } else {
+              // Unknown type, reset.
+              RXinfo.state = 0;
+              return;
+            }
           // T-Mode
           // Possible improvment: Check the return value from the deocding function,
           // and abort RX if coding error. 
-          if (decode3outof6(RXinfo.pByteIndex, bytesDecoded, 0) != DECODING_3OUTOF6_OK) {
+          } else if (decode3outof6(RXinfo.pByteIndex, bytesDecoded, 0) != DECODING_3OUTOF6_OK) {
             RXinfo.state = 0;
             return;
-	  }		
-          RXinfo.lengthField = bytesDecoded[0];
-          RXinfo.length = byteSize(0, 0, (packetSize(RXinfo.lengthField)));
+	        } else {
+            RXinfo.framemode = WMBUS_TMODE;
+            RXinfo.frametype = WMBUS_FRAMEA;
+            RXinfo.lengthField = bytesDecoded[0];
+            RXinfo.length = byteSize(0, 0, (packetSize(RXinfo.lengthField)));
+          }
         }
 
-	// check if incoming data will fit into buffer
-	if (RXinfo.length>sizeof(MBbytes)) {
-          RXinfo.state = 0;
-          return;
- 	}
+        // check if incoming data will fit into buffer
+        if (RXinfo.length > sizeof(MBbytes)) {
+                RXinfo.state = 0;
+                return;
+        }
 
         // we got the length: now start setup chip to receive this much data
         // - Length mode -
@@ -342,20 +389,39 @@ void rf_mbus_task(void) {
 
     // decode!
     uint16_t rxStatus = PACKET_CODING_ERROR;
+    uint16_t rxLength;
 
-    if (RXinfo.mode == WMBUS_SMODE)
+    if (RXinfo.mode == WMBUS_SMODE) {
       rxStatus = decodeRXBytesSmode(MBbytes, MBpacket, packetSize(RXinfo.lengthField));
-    else
+      rxLength = packetSize(MBpacket[0]);
+    } else if (RXinfo.framemode == WMBUS_TMODE) {
       rxStatus = decodeRXBytesTmode(MBbytes, MBpacket, packetSize(RXinfo.lengthField));
+      rxLength = packetSize(MBpacket[0]);
+    } else if (RXinfo.framemode == WMBUS_CMODE) {
+      if (RXinfo.frametype == WMBUS_FRAMEA) {
+        rxLength = RXinfo.lengthField + 2 * (2 + (RXinfo.lengthField - 10)/16) + 1;
+        rxStatus = verifyCrcBytesCmodeA(MBbytes + 2, MBpacket, rxLength);
+      } else if (RXinfo.frametype == WMBUS_FRAMEB) {
+        rxLength = RXinfo.lengthField + 1;
+        rxStatus = verifyCrcBytesCmodeB(MBbytes + 2, MBpacket, rxLength);
+      }
+    }
 
     if (rxStatus == PACKET_OK) {
 
       MULTICC_PREFIX();
-      DC( 'b' );
+      DC('b');
 
-      for (uint8_t i=0; i < packetSize(MBpacket[0]); i++) {
+      if (RXinfo.mode == WMBUS_CMODE) {
+        if (RXinfo.frametype == WMBUS_FRAMEB) {
+          DC('Y'); // special marker for frame type B to make it distinguishable 
+                   // from frame type A
+        }
+      }
+
+      for (uint8_t i=0; i < rxLength; i++) {
         DH2( MBpacket[i] );
-//	DC( ' ' );
+    //	DC( ' ' );
       }
 
       if (TX_REPORT & REP_RSSI) {
@@ -515,6 +581,10 @@ static void mbus_status(void) {
       MULTICC_PREFIX();
       DS_P(PSTR("TMODE"));
       break;
+    case WMBUS_CMODE:
+      MULTICC_PREFIX();
+      DS_P(PSTR("CMODE"));
+      break;
     default:
       MULTICC_PREFIX();
       DS_P(PSTR("OFF"));
@@ -534,6 +604,8 @@ void rf_mbus_func(char *in) {
       set_RF_mode(RF_mode_WMBUS_S);
     } else if(in[2] == 't') {
       set_RF_mode(RF_mode_WMBUS_T);
+    } else if(in[2] == 'c') {
+      set_RF_mode(RF_mode_WMBUS_C);
     } else {                        // Off
       set_RF_mode(RF_mode_off);
     }
@@ -542,6 +614,8 @@ void rf_mbus_func(char *in) {
       rf_mbus_init(WMBUS_SMODE,RADIO_MODE_RX);
     } else if(in[2] == 't') {
       rf_mbus_init(WMBUS_TMODE,RADIO_MODE_RX);
+    } else if(in[2] == 'c') {
+      rf_mbus_init(WMBUS_CMODE,RADIO_MODE_RX);
     } else {                        // Off
       rf_mbus_init(WMBUS_NONE,RADIO_MODE_NONE);
     }	
