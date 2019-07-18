@@ -49,6 +49,8 @@ USBD_HandleTypeDef hUsbDeviceFS;
 void MX_USB_DEVICE_Init(void)
 {
   /* Init Device Library,Add Supported Class and Start the library*/
+  hal_UCBD_connect_init();
+
   USBD_Init(&hUsbDeviceFS, &FS_Desc, DEVICE_FS);
 
   USBD_RegisterClass(&hUsbDeviceFS, &USBD_CDC);
@@ -56,10 +58,8 @@ void MX_USB_DEVICE_Init(void)
   USBD_CDC_RegisterInterface(&hUsbDeviceFS, &USBD_Interface_fops_FS);
 
   USBD_Start(&hUsbDeviceFS);
-
-  hal_UCBD_connect_init();
-
 }
+
 void USBD_Disconnect(void) {
 #ifdef USBD_CONNECT_PIN
   HAL_GPIO_WritePin(USBD_CONNECT_PORT, _BV(USBD_CONNECT_PIN), GPIO_PIN_SET);
