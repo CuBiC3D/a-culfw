@@ -94,10 +94,6 @@ uint8_t UserRxBufferFS[APP_RX_DATA_SIZE];
 //uint8_t UserTxBufferFS[APP_TX_DATA_SIZE];
 
 /* USER CODE BEGIN PRIVATE_VARIABLES */
-static struct lineState_t {
-	uint8_t dtr;
-	uint8_t rts;
-} lineState[CDC_COUNT];
 
 uint8_t CDC_connected[CDC_COUNT];
 /* USER CODE END PRIVATE_VARIABLES */
@@ -154,8 +150,6 @@ static int8_t CDC_Init_FS(void)
   for (unsigned x=0; x<CDC_COUNT; x++) {
     USBD_CDC_SetTxBuffer(&hUsbDeviceFS, NULL, 0,x);
     USBD_CDC_SetRxBuffer(&hUsbDeviceFS, UserRxBufferFS,x);
-    lineState[x].dtr = 0;
-    lineState[x].rts = 0;
   }
   return (USBD_OK);
   /* USER CODE END 3 */ 
@@ -186,7 +180,6 @@ static int8_t CDC_Control_FS  (uint8_t cmd, uint8_t* pbuf, uint16_t length, uint
 { 
   /* USER CODE BEGIN 5 */
   CDCLineCoding_t *line_coding;
-  USBD_SetupReqTypedef *req;
 
   TRACE_DEBUG("CDC_Control: cmd:%x cdc:%x \n\r", cmd, cdc_num);
 
@@ -247,9 +240,6 @@ static int8_t CDC_Control_FS  (uint8_t cmd, uint8_t* pbuf, uint16_t length, uint
     break;
 
   case CDC_SET_CONTROL_LINE_STATE:
-    req = (USBD_SetupReqTypedef *)pbuf;
-    lineState[cdc_num].dtr = req->wValue & 0x01;
-    lineState[cdc_num].rts = (req->wValue >> 1) & 0x01;
 
     break;
 
@@ -359,9 +349,6 @@ uint8_t CDC_Transmit_FS(uint8_t* Buf, uint16_t Len, uint8_t cdc_num)
   if (hcdc->TxState != 0){
     return USBD_BUSY;
   }
-  if(!CDC_isConnected(cdc_num)) {
-    return USBD_FAIL;
-  }
   USBD_CDC_SetTxBuffer(&hUsbDeviceFS, Buf, Len, cdc_num);
   result = USBD_CDC_TransmitPacket(&hUsbDeviceFS, cdc_num);
   /* USER CODE END 7 */ 
@@ -392,7 +379,7 @@ unsigned char CDCDSerialDriver_Write(void *data,
 
 unsigned char CDC_isConnected(uint8_t cdc_num)
 {
-  if((USBD_GetState() == USBD_STATE_CONFIGURED) && CDC_connected[cdc_num] && lineState[cdc_num].dtr) {
+  if((USBD_GetState() == USBD_STATE_CONFIGURED) && CDC_connected[cdc_num]) {
     return 1;
   }
   return 0;
