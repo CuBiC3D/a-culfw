@@ -1,6 +1,6 @@
 # Add the full path name of these tools if necessary
-CC=/opt/truestudio/ARMTools/bin/arm-atollic-eabi-gcc
-OBJCOPY=/opt/truestudio/ARMTools/bin/arm-atollic-eabi-objcopy
+CC=arm-none-eabi-gcc
+OBJCOPY=arm-none-eabi-objcopy
 
 ###############################################################
 #####
