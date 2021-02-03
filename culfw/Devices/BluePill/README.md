@@ -8,7 +8,7 @@
 - oder alternativ MSC bootloader: https://github.com/Telekatz/MSC-stm32f103-bootloader/releases
 - a-culfw: https://www.mediafire.com/folder/iuf7lue8r578c/a-culfw
 - USB zu TTL Adapter. 
-
+- Funktionierende toolchain: `gcc-arm-none-eabi-6-2017-q2-update`
 
 ## Bootloader flashen
 Der Prozess über den internen UART Bootloader ist hier beschrieben: https://medium.com/@paramaggarwal/programming-an-stm32f103-board-using-usb-port-blue-pill-953cec0dbc86. Falls vorhanden, kann auch ein ST-LINK, J-Link oder beliebiger anderer
