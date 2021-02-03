@@ -64,7 +64,7 @@
 #define HAS_XRAM
 #define UART_BAUD_RATE          115200
 #define HAS_UART                1
-#define USE_RF_MODE
+//#define USE_RF_MODE
 #define USE_HAL
 #define HAS_ONEWIRE             10        // OneWire Support
 #define MAX_CREDIT 3600       // max 36 seconds burst / 100% of the hourly budget
